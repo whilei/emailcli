@@ -1,16 +1,14 @@
 package main
 
 import (
-	"fmt"
+	"log"
+	"net/smtp"
 	"os"
 
-	"crypto/tls"
-	"crypto/x509"
+	"io/ioutil"
+
 	"github.com/jordan-wright/email"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"io/ioutil"
-	"net"
-	"net/smtp"
 )
 
 var (
@@ -61,60 +59,30 @@ func main() {
 		bodytxt = []byte(*body)
 	}
 
-	err := func() error {
-		tlsConf := new(tls.Config)
-		if *tlsHost != "" {
-			tlsConf.ServerName = *tlsHost
-		} else {
-			tlsConf.ServerName = *host
-		}
-		tlsConf.InsecureSkipVerify = *sslInsecure
+	if *from == "" {
+		from = username
+	}
 
-		if *sslCA != "" {
-			certs := x509.NewCertPool()
+	if *username == "" {
+		log.Fatal("empty username")
+	} else {
+		log.Println("username:", *username)
+	}
 
-			pemData, err := ioutil.ReadFile(*sslCA)
-			if err != nil {
-				println("Error loading custom root CA:", *sslCA)
-				return err
-			}
-			certs.AppendCertsFromPEM(pemData)
-			tlsConf.RootCAs = certs
-		}
+	if *password == "" {
+		log.Fatal("empty pass")
+	} else {
+		// log.Println("pass:", *password)
+	}
 
-		sendPool, perr := email.NewPool(
-			net.JoinHostPort(*host, fmt.Sprintf("%v", *port)),
-			*poolsize,
-			smtp.PlainAuth("", *username, *password, *host),
-			tlsConf,
-		)
-		if perr != nil {
-			println("Error creating email pool:", perr.Error())
-			return perr
-		}
-		//defer sendPool.Close()
+	var err error
 
-		for _, recipient := range *to {
-			m := email.NewEmail()
-			m.From = *from
-			m.To = []string{recipient}
-			m.Subject = *subject
-			m.Text = bodytxt
-
-			for _, filename := range *attachments {
-				_, err := m.AttachFile(filename)
-				if err != nil {
-					println(err)
-					return err
-				}
-			}
-
-			if err := sendPool.Send(m, *timeout); err != nil {
-				println("Error sending mail:", recipient, err.Error())
-			}
-		}
-		return nil
-	}()
+	e := email.NewEmail()
+	e.From = *from
+	e.To = *to
+	e.Subject = *subject
+	e.Text = bodytxt
+	err = e.Send("smtp.gmail.com:587", smtp.PlainAuth("", *username, *password, "smtp.gmail.com"))
 
 	if err != nil {
 		println("Error sending mail:", err.Error())
