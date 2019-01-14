@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/smtp"
 	"os"
+	"strings"
 
 	"io/ioutil"
 
@@ -25,6 +26,7 @@ var (
 
 	subject = kingpin.Flag("subject", "Subject line of email.").Envar("EMAIL_SUBJECT").String()
 	body    = kingpin.Flag("body", "Body of email. Read from stdin if blank.").Envar("EMAIL_BODY").String()
+	cc      = kingpin.Flag("cc", "Carbon copy email target. Comma-separated.").Envar("EMAIL_CC").String()
 
 	from = kingpin.Flag("from", "From address for email").Envar("EMAIL_FROM").String()
 	to   = kingpin.Arg("to", "Email recipients").Strings()
@@ -76,8 +78,12 @@ func main() {
 	}
 
 	var err error
-
 	e := email.NewEmail()
+
+	if *cc != "" {
+		e.Cc = strings.Split(*cc, ",")
+	}
+
 	e.From = *from
 	e.To = *to
 	e.Subject = *subject
